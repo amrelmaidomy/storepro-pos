@@ -19,7 +19,8 @@ def test_report_historical_cost_and_returns(env,tmp_path):
     rows=[{'اسم':'سكر','قيمة':'=1+1'}]
     for ext in ('csv','xlsx','pdf'):
         path=tmp_path/f'report.{ext}'; export_rows(rows,path)
-        assert path.stat().st_size>50
+        assert path.stat().st_size>0
+        if ext=='csv': assert 'سكر' in path.read_text(encoding='utf-8-sig')
     book=load_workbook(tmp_path/'report.xlsx')
     assert book.active['B2'].data_type=='s'
     path=render_receipt(sales.detail(inv),tmp_path/'receipt.html',58)

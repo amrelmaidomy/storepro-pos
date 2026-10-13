@@ -77,17 +77,18 @@ class Sales:
                 newqty=line['returned']+q
                 value=((line['net_total']+line['tax'])*newqty+line['qty']//2)//line['qty']-line['refunded']
                 cost=(amount(line['cost'],line['qty'])*newqty+line['qty']//2)//line['qty']-line['cost_returned']
-                prepared.append((line,q,value,cost))
+                netvalue=(line['net_total']*newqty+line['qty']//2)//line['qty']-(line['net_total']*line['returned']+line['qty']//2)//line['qty']
+                prepared.append((line,q,value,cost,netvalue))
             total=sum(x[2] for x in prepared)
             rid=c.execute("insert into returns(kind,source_id,actor,total,method) values('sale',?,?,?,?)",(sale_id,actor,total,method)).lastrowid
-            for line,q,value,cost in prepared:
+            for line,q,value,cost,netvalue in prepared:
                 stock_move(c,actor,line['product_id'],q,'sale_return',rid)
                 p=c.execute('select * from products where id=?',(line['product_id'],)).fetchone()
                 oldqty=p['stock']-q
                 newcost=(oldqty*p['cost']+q*line['cost']+p['stock']//2)//p['stock']
                 c.execute('update products set cost=? where id=?',(newcost,p['id']))
                 c.execute('update sale_items set returned=returned+?,refunded=refunded+?,cost_returned=cost_returned+? where id=?',(q,value,cost,line['id']))
-                c.execute('insert into return_items(return_id,item_id,qty,amount,cost) values(?,?,?,?,?)',(rid,line['id'],q,value,cost))
+                c.execute('insert into return_items(return_id,item_id,qty,amount,cost,net_amount,tax_amount) values(?,?,?,?,?,?,?)',(rid,line['id'],q,value,cost,netvalue,value-netvalue))
             debt=0
             if header['credit']:
                 previous=c.execute("select coalesce(sum(-amount),0) from party_moves where kind='sale_return' and reference=?",(str(sale_id),)).fetchone()[0]

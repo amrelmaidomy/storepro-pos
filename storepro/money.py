@@ -16,6 +16,7 @@ def _parse(text, scale, positive=False):
 
 def parse_money(text): return _parse(text,100)
 def parse_quantity(text): return _parse(text,1000,True)
+def parse_quantity_zero(text): return _parse(text,1000)
 def amount(price,quantity): return (price*quantity+500)//1000
 def formatted(value): return f'{value/100:.2f}'
 def quantity_text(value): return f'{value/1000:g}'
