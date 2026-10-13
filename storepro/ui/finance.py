@@ -1,6 +1,6 @@
 from tkinter import messagebox
 import customtkinter as ctk
-from .forms import Page,Field,Table,Dialog,button
+from .forms import Label,Button,Page,Field,Table,Dialog,button
 from ..sales import Sales
 from ..purchases import Purchases
 from ..shifts import Shifts
@@ -18,10 +18,12 @@ class HistoryPage(Page):
         self.table=Table(self,['id','number' if not purchase else 'supplier_id','date','total_text','actor']); self.table.pack(fill='both',expand=True,padx=10,pady=10)
         self.refresh()
     def refresh(self):
+        self.app.auth.require(self.app.actor,'manage' if self.purchase else 'view')
         table='purchases' if self.purchase else 'sales'
         rows=self.app.db.rows(f'select * from {table} order by id desc')
         self.table.load([dict(r,total_text=formatted(r['total'])) for r in rows])
     def invoice(self):
+        self.app.auth.require(self.app.actor,'manage' if self.purchase else 'view')
         service=Purchases(self.app.db) if self.purchase else Sales(self.app.db)
         return service,service.detail(self.table.selected()['id'])
     def detail(self):
@@ -52,10 +54,11 @@ class FinancePage(Page):
         self.service=Shifts(app.db)
         button(self.toolbar,'فتح وردية',self.open); button(self.toolbar,'إغلاق وردية',self.close)
         button(self.toolbar,'إيراد / مصروف',self.movement); button(self.toolbar,'تحديث',self.refresh)
-        self.status=ctk.CTkLabel(self,text='',font=('Tahoma',18)); self.status.pack(pady=15)
+        self.status=Label(self,text='',font=('Tahoma',18)); self.status.pack(pady=15)
         self.table=Table(self,['id','date','kind','amount_text','description','reference']); self.table.pack(fill='both',expand=True,padx=10,pady=10)
         self.refresh()
     def refresh(self):
+        self.app.auth.require(self.app.actor,'shift')
         shift=self.service.current()
         self.status.configure(text=f"وردية {shift['id']} — النقد المتوقع {formatted(shift['expected'])}" if shift else 'لا توجد وردية مفتوحة')
         self.table.load([dict(r,amount_text=formatted(r['amount'])) for r in self.app.db.rows('select * from cash_moves order by id desc')])

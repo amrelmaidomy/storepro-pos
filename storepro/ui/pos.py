@@ -1,6 +1,6 @@
 from uuid import uuid4
 import customtkinter as ctk
-from .forms import Page,Field,Table,button,guarded,Dialog
+from .forms import Label,Button,Page,Field,Table,button,guarded,Dialog
 from ..catalog import Catalog
 from ..sales import Sales
 from ..purchases import Purchases
@@ -12,6 +12,7 @@ from ..exports import render_receipt,preview_receipt
 class CartPage(Page):
     def __init__(self,parent,app,purchase=False):
         super().__init__(parent,app,'فاتورة شراء' if purchase else 'نقطة البيع')
+        self.toolbar.pack_forget()
         self.purchase=purchase; self.cart={}; self.request_id=str(uuid4()); self.catalog=Catalog(app.db)
         searchbar=ctk.CTkFrame(self); searchbar.pack(fill='x',padx=10)
         self.query=Field(searchbar,'بحث باركود / اسم / رقم')
@@ -20,10 +21,10 @@ class CartPage(Page):
         self.quantity=Field(searchbar,'الكمية','1')
         self.price=Field(searchbar,'سعر الشراء للوحدة','0') if purchase else None
         button(buttons,'إضافة المحدد للسلة',self.add_selected)
-        self.results=Table(self,['id','barcode','name','price','stock']); self.results.pack(fill='x',padx=10,pady=5); self.results.tree.configure(height=3)
+        self.results=Table(self,['id','barcode','name','price','stock']); self.results.pack(fill='x',padx=10,pady=5); self.results.tree.configure(height=2); self.results.configure(height=115); self.results.pack_propagate(False)
         self.results.tree.bind('<Double-1>',guarded(lambda e:self.add_selected()))
         self.query.widget.bind('<Return>',guarded(lambda e:self.search(True)))
-        self.table=Table(self,['product_id','name','qty_text','price_text','total_text']); self.table.pack(fill='both',expand=True,padx=10,pady=5)
+        self.table=Table(self,['product_id','name','qty_text','price_text','total_text']); self.table.configure(height=130); self.table.pack_propagate(False); self.table.pack(fill='both',expand=True,padx=10,pady=5)
         edits=ctk.CTkFrame(self); edits.pack(fill='x',padx=10)
         button(edits,'حذف البند',self.remove_selected); button(edits,'تعديل كمية البند',self.edit_quantity); button(edits,'تفريغ السلة',self.clear)
         bottom=ctk.CTkFrame(self); bottom.pack(fill='x',padx=10,pady=5)
@@ -37,7 +38,7 @@ class CartPage(Page):
         pay=ctk.CTkFrame(bottom); pay.pack(side='left',fill='both',expand=True)
         self.cash=Field(pay,'نقدي','0').widget; self.card=Field(pay,'بطاقة','0')
         self.credit=Field(pay,'آجل','0') if not purchase else None
-        self.total_label=ctk.CTkLabel(pay,text='الإجمالي: 0.00',font=('Tahoma',20)); self.total_label.pack()
+        self.total_label=Label(pay,text='الإجمالي: 0.00',font=('Tahoma',20)); self.total_label.pack()
         bar=ctk.CTkFrame(pay); bar.pack(fill='x')
         button(bar,'حساب الإجمالي',self.refresh); button(bar,'نقدي كامل',self.fill_cash)
         button(bar,'حفظ الشراء' if purchase else 'إتمام البيع F9',self.complete_and_notify)
@@ -49,9 +50,11 @@ class CartPage(Page):
         super().destroy()
 
     def search(self,auto=False):
+        self.app.auth.require(self.app.actor,'manage' if self.purchase else 'sell')
         rows=self.catalog.search(self.query.get()); self.results.load(rows)
         if auto:
-            exact=[r for r in rows if r['barcode']==self.query.get() or str(r['id'])==self.query.get()]
+            exact=[r for r in rows if r['barcode']==self.query.get()]
+            if not exact: exact=[r for r in rows if str(r['id'])==self.query.get()]
             if exact or len(rows)==1:
                 p=(exact or rows)[0]; self.add_product(p['id'],parse_quantity(self.quantity.get()),parse_money(self.price.get()) if self.price else None)
                 self.query.set(''); self.query.widget.focus_set()
@@ -61,6 +64,7 @@ class CartPage(Page):
         self.add_product(p['id'],parse_quantity(self.quantity.get()),parse_money(self.price.get()) if self.price else None)
 
     def add_product(self,pid,qty,price=None):
+        self.app.auth.require(self.app.actor,'manage' if self.purchase else 'sell')
         integer(qty,1)
         rows=self.app.db.rows('select * from products where id=? and active=1',(pid,))
         if not rows: raise ValueError('المنتج غير متاح')

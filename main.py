@@ -21,7 +21,9 @@ def main():
     logging.basicConfig(handlers=[handler],level=logging.WARNING,format='%(asctime)s %(levelname)s %(message)s')
     try:
         from storepro.ui.app import App
-        App(args.data_dir).run()
+        from storepro.instance import InstanceLock
+        with InstanceLock(args.data_dir/'.instance.lock'):
+            App(args.data_dir).run()
     except Exception:
         logging.exception('Startup failed')
         print('StorePro failed to start. See errors.log in the data directory.',file=sys.stderr)

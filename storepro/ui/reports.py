@@ -1,7 +1,7 @@
 from datetime import date
 from tkinter import filedialog
 import customtkinter as ctk
-from .forms import Page,Field,Table,button
+from .forms import Label,Button,Page,Field,Table,button
 from ..reports import Reports
 from ..exports import export_rows
 from ..money import formatted
@@ -17,10 +17,11 @@ class ReportsPage(Page):
         self.end=Field(self.toolbar,'إلى YYYY-MM-DD',date.today().isoformat())
         self.kind=Field(self.toolbar,'التقرير',choices=list(TYPES))
         button(self.toolbar,'عرض',self.refresh); button(self.toolbar,'تصدير CSV / Excel / PDF',self.export)
-        self.summary=ctk.CTkLabel(self,text='',font=('Tahoma',15)); self.summary.pack(fill='x',padx=10,pady=5)
-        ctk.CTkLabel(self,text='ملفات التصدير الخام: مبالغ بوحدة القروش وكميات بألف جزء. الصافي والأرباح أدناه يحتسبان المرتجعات حسب تاريخها.',font=('Tahoma',12)).pack()
+        self.summary=Label(self,text='',font=('Tahoma',15)); self.summary.pack(fill='x',padx=10,pady=5)
+        Label(self,text='ملفات التصدير الخام: مبالغ بوحدة القروش وكميات بألف جزء. الصافي والأرباح أدناه يحتسبان المرتجعات حسب تاريخها.',font=('Tahoma',12)).pack()
         self.refresh()
     def refresh(self):
+        self.app.auth.require(self.app.actor,'manage')
         report=self.service.summary(self.start.get(),self.end.get())
         self.summary.configure(text=f"بيع: {formatted(report['sales'])} | مرتجعات: {formatted(report['refunds'])} | صافي بدون ضريبة: {formatted(report['net_sales'])} | ضريبة: {formatted(report['tax'])} | ربح معلوم التكلفة: {formatted(report['profit'])} | فواتير قديمة تكلفة مجهولة: {report['historical_unknown_cost']}")
         self.rows=self.service.table(TYPES[self.kind.get()],self.start.get(),self.end.get())
@@ -28,5 +29,6 @@ class ReportsPage(Page):
         columns=list(self.rows[0]) if self.rows else ['لا توجد بيانات']
         self.table=Table(self,columns); self.table.pack(fill='both',expand=True,padx=10,pady=10); self.table.load(self.rows)
     def export(self):
+        self.app.auth.require(self.app.actor,'manage')
         path=filedialog.asksaveasfilename(defaultextension='.xlsx',filetypes=[('Excel','*.xlsx'),('CSV','*.csv'),('PDF','*.pdf')])
         if path: export_rows(self.rows,path); self.notify('تم تصدير التقرير')

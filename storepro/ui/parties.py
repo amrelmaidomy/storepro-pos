@@ -12,7 +12,9 @@ class PartiesPage(Page):
         button(self.toolbar,'تحصيل / سداد',self.pay); button(self.toolbar,'كشف الحساب',self.ledger); button(self.toolbar,'تحديث',self.refresh)
         self.table=Table(self,['id','name','phone','address','balance_text','active']); self.table.pack(fill='both',expand=True,padx=10,pady=10)
         self.refresh()
-    def refresh(self): self.table.load([dict(p,balance_text=formatted(p['balance'])) for p in self.service.list(self.kind)])
+    def refresh(self):
+        self.app.auth.require(self.app.actor,'manage')
+        self.table.load([dict(p,balance_text=formatted(p['balance'])) for p in self.service.list(self.kind)])
     def edit(self,p=None):
         p=p or {}
         def save(v):

@@ -52,3 +52,17 @@ def test_legacy_migration(tmp_path):
     assert db.rows('select stock,cost from products')[0] == {'stock':3000,'cost':250}
     assert db.rows('select total from sales')[0]['total']==500
     assert list(tmp_path.glob('*.pre-migration-*'))
+
+@pytest.mark.parametrize('value',['1.000000000000000000000000000001','0.999999999999999999999999999999','1e1000000','1e-1000000'])
+def test_exact_precision_without_decimal_context_rounding(value):
+    with pytest.raises(ValueError): parse_money(value)
+
+def test_legacy_duplicate_barcodes_are_preserved_without_ambiguous_search(tmp_path):
+    path=tmp_path/'old.db'
+    with sqlite3.connect(path) as c:
+        c.executescript("create table users(id integer primary key,username text,password text,role text); insert into users values(1,'admin','1234','Admin'); create table products(id integer primary key,barcode text,name text,category text,buy real,sell real,stock integer,min_stock integer); insert into products values(1,'same','a','',1,2,3,0); insert into products values(2,'same','b','',1,2,3,0);")
+    db=Database(path)
+    assert len(db.rows('select * from products'))==2
+    assert db.rows('select barcode from products order by id')==[{'barcode':'same'},{'barcode':None}]
+    assert db.rows('select barcode from legacy_products where id=2')[0]['barcode']=='same'
+    assert '2' in db.rows("select value from settings where key='migration_notice'")[0]['value']

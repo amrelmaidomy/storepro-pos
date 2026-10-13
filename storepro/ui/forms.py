@@ -1,10 +1,33 @@
 import logging
+import re
+import arabic_reshaper
+from bidi.algorithm import get_display
 import sqlite3
 import tkinter as tk
 from tkinter import ttk,messagebox
 import customtkinter as ctk
 
 FONT=('Tahoma',14)
+
+
+def rtl(value):
+    text=str(value)
+    return get_display(arabic_reshaper.reshape(text)) if re.search(r'[\u0600-\u06ff]',text) else text
+
+
+class Label(ctk.CTkLabel):
+    def __init__(self,*args,**kwargs):
+        if 'text' in kwargs: kwargs['text']=rtl(kwargs['text'])
+        super().__init__(*args,**kwargs)
+    def configure(self,**kwargs):
+        if 'text' in kwargs: kwargs['text']=rtl(kwargs['text'])
+        return super().configure(**kwargs)
+
+
+class Button(ctk.CTkButton):
+    def __init__(self,*args,**kwargs):
+        if 'text' in kwargs: kwargs['text']=rtl(kwargs['text'])
+        super().__init__(*args,**kwargs)
 
 
 def guarded(callback):
@@ -19,25 +42,28 @@ def guarded(callback):
 
 
 def button(parent,text,callback,**kwargs):
-    b=ctk.CTkButton(parent,text=text,font=FONT,command=guarded(callback),**kwargs)
+    b=Button(parent,text=text,font=FONT,command=guarded(callback),**kwargs)
     b.pack(side='right',padx=4,pady=5)
     return b
 
 
 class Field:
     def __init__(self,parent,label,value='',choices=None,secret=False):
+        self.choices={rtl(str(v)):str(v) for v in choices} if choices else {}
         self.frame=ctk.CTkFrame(parent,fg_color='transparent'); self.frame.pack(fill='x',pady=3)
-        ctk.CTkLabel(self.frame,text=label,font=FONT,width=150,anchor='e').pack(side='right',padx=6)
+        Label(self.frame,text=label,font=FONT,width=150,anchor='e').pack(side='right',padx=6)
         if choices:
-            self.widget=ctk.CTkComboBox(self.frame,values=list(choices),font=FONT,state='readonly',width=220)
-            self.widget.set(str(value) if value in choices else str(choices[0]))
+            self.widget=ctk.CTkComboBox(self.frame,values=list(self.choices),font=FONT,state='readonly',width=220)
+            self.widget.set(rtl(str(value) if value in choices else str(choices[0])))
         else:
             self.widget=ctk.CTkEntry(self.frame,font=FONT,justify='right',width=220,show='*' if secret else '')
             self.widget.insert(0,str(value))
         self.widget.pack(side='right',fill='x',expand=True)
-    def get(self): return self.widget.get().strip()
+    def get(self):
+        value=self.widget.get().strip()
+        return self.choices.get(value,value)
     def set(self,value):
-        if isinstance(self.widget,ctk.CTkComboBox): self.widget.set(str(value))
+        if isinstance(self.widget,ctk.CTkComboBox): self.widget.set(rtl(str(value)))
         else: self.widget.delete(0,'end'); self.widget.insert(0,str(value))
 
 
@@ -64,13 +90,13 @@ class Table(ctk.CTkFrame):
         style=ttk.Style(); style.configure('Treeview',font=('Tahoma',11),rowheight=30); style.configure('Treeview.Heading',font=('Tahoma',11,'bold'))
         self.tree=ttk.Treeview(self,columns=self.columns,show='headings',selectmode='browse')
         for col in self.columns:
-            self.tree.heading(col,text=LABELS.get(col,col)); self.tree.column(col,width=120,anchor='e',minwidth=80)
+            self.tree.heading(col,text=rtl(LABELS.get(col,col))); self.tree.column(col,width=120,anchor='e',minwidth=80)
         y=ttk.Scrollbar(self,orient='vertical',command=self.tree.yview); y.pack(side='left',fill='y')
         x=ttk.Scrollbar(self,orient='horizontal',command=self.tree.xview); x.pack(side='bottom',fill='x')
         self.tree.configure(yscrollcommand=y.set,xscrollcommand=x.set); self.tree.pack(fill='both',expand=True)
     def load(self,rows):
         self.rows=rows; self.tree.delete(*self.tree.get_children())
-        for index,row in enumerate(rows): self.tree.insert('', 'end',iid=str(index),values=[row.get(k,'') for k in self.columns])
+        for index,row in enumerate(rows): self.tree.insert('', 'end',iid=str(index),values=[rtl(row.get(k,'')) for k in self.columns])
     def selected(self):
         ids=self.tree.selection()
         if not ids: raise ValueError('اختر صفًا من الجدول أولًا')
@@ -80,6 +106,6 @@ class Table(ctk.CTkFrame):
 class Page(ctk.CTkFrame):
     def __init__(self,parent,app,title):
         super().__init__(parent); self.app=app
-        ctk.CTkLabel(self,text=title,font=('Tahoma',24,'bold')).pack(anchor='e',padx=15,pady=8)
+        Label(self,text=title,font=('Tahoma',24,'bold')).pack(anchor='e',padx=15,pady=8)
         self.toolbar=ctk.CTkFrame(self); self.toolbar.pack(fill='x',padx=10,pady=4)
     def notify(self,text): messagebox.showinfo('StorePro',text)

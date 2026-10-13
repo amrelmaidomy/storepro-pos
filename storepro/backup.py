@@ -10,6 +10,10 @@ from .auth import Auth
 class Backup:
     def __init__(self,db): self.db=db
 
+    def export(self,actor,destination):
+        Auth(self.db).require(actor,'manage')
+        return self.create(destination)
+
     def create(self,destination):
         destination=Path(destination)
         if destination.resolve()==self.db.path.resolve(): raise ValueError('لا تستخدم قاعدة التشغيل كوجهة للنسخ')

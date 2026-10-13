@@ -81,8 +81,15 @@ class Database:
                 if statement.strip(): c.execute(statement)
             for r in c.execute('select * from legacy_users').fetchall():
                 c.execute('insert into users(id,username,password_hash,role,must_reset) values(?,?,?,?,?)',(r['id'],r['username'],hash_password(r['password']), 'Admin' if r['role']=='Admin' else 'Cashier',1))
-            for r in c.execute('select * from legacy_products').fetchall():
-                c.execute('insert into products(id,barcode,name,category,cost,price,stock,min_stock) values(?,?,?,?,?,?,?,?)',(r['id'],r['barcode'] or None,r['name'],r['category'] or '',parse_money(r['buy']),parse_money(r['sell']),int(r['stock'])*1000,int(r['min_stock'])*1000))
+            migration_notices=[]
+            for r in c.execute('select * from legacy_products order by id').fetchall():
+                barcode=str(r['barcode'] or '').strip() or None
+                if barcode and c.execute('select 1 from products where barcode=?',(barcode,)).fetchone():
+                    migration_notices.append(f"المنتج {r['id']}: الباركود {barcode} مكرر؛ أعطه باركودًا جديدًا.")
+                    barcode=None
+                c.execute('insert into products(id,barcode,name,category,cost,price,stock,min_stock) values(?,?,?,?,?,?,?,?)',(r['id'],barcode,r['name'],r['category'] or '',parse_money(r['buy']),parse_money(r['sell']),int(r['stock'])*1000,int(r['min_stock'])*1000))
+            if migration_notices:
+                c.execute("insert into settings(key,value) values('migration_notice',?)",('\n'.join(migration_notices),))
             actor=c.execute('select id from users order by id limit 1').fetchone()
             if 'sales' in tables and actor:
                 for r in c.execute('select * from legacy_sales').fetchall():

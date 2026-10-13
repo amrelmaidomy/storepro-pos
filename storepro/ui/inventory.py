@@ -13,6 +13,7 @@ class ProductsPage(Page):
         self.table=Table(self,['id','barcode','name','category','unit','cost_text','price_text','stock_text','minimum_text','active']); self.table.pack(fill='both',expand=True,padx=10,pady=10)
         self.refresh()
     def refresh(self):
+        self.app.auth.require(self.app.actor,'manage')
         self.table.load([dict(p,cost_text=formatted(p['cost']),price_text=formatted(p['price']),stock_text=p['stock']/1000,minimum_text=p['min_stock']/1000) for p in self.service.search(self.query.get(),True)])
     def edit(self,p=None):
         p=p or {}

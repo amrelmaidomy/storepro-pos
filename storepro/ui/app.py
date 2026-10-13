@@ -1,7 +1,7 @@
 import logging
 from pathlib import Path
 import customtkinter as ctk
-from .forms import Page,Field,Dialog,button,guarded
+from .forms import Label,Button,Page,Field,Dialog,button,guarded
 from .pos import CartPage
 from .inventory import ProductsPage
 from .parties import PartiesPage
@@ -34,9 +34,9 @@ class App(ctk.CTk):
         self.actor=None; self.reset()
         panel=ctk.CTkFrame(self.shell,width=480); panel.pack(expand=True,padx=40,pady=50)
         first=not self.db.rows('select id from users')
-        ctk.CTkLabel(panel,text='إنشاء المدير — أول تشغيل' if first else 'تسجيل الدخول',font=('Tahoma',26,'bold')).pack(pady=25,padx=25)
+        Label(panel,text='إنشاء المدير — أول تشغيل' if first else 'تسجيل الدخول',font=('Tahoma',26,'bold')).pack(pady=25,padx=25)
         username=Field(panel,'اسم المستخدم'); password=Field(panel,'كلمة المرور',secret=True)
-        error=ctk.CTkLabel(panel,text='',text_color='#ff7474',font=('Tahoma',13)); error.pack(pady=10)
+        error=Label(panel,text='',text_color='#ff7474',font=('Tahoma',13)); error.pack(pady=10)
         def submit():
             try:
                 if first: self.auth.setup_admin(username.get(),password.get())
@@ -52,7 +52,7 @@ class App(ctk.CTk):
         self.reset()
         if user['must_reset']:
             panel=ctk.CTkFrame(self.shell); panel.pack(expand=True)
-            ctk.CTkLabel(panel,text='غيّر كلمة المرور القديمة قبل الاستخدام',font=('Tahoma',20)).pack(pady=15)
+            Label(panel,text='غيّر كلمة المرور القديمة قبل الاستخدام',font=('Tahoma',20)).pack(pady=15)
             new=Field(panel,'كلمة مرور جديدة',secret=True)
             def change(): self.auth.change_password(actor,password,new.get()); self.build_shell()
             button(panel,'تغيير ومتابعة',change)
@@ -61,14 +61,14 @@ class App(ctk.CTk):
         self.reset()
         side=ctk.CTkScrollableFrame(self.shell,width=190); side.pack(side='right',fill='y',padx=5,pady=5)
         self.body=ctk.CTkFrame(self.shell); self.body.pack(side='left',fill='both',expand=True)
-        ctk.CTkLabel(side,text=self.settings.get('store_name'),font=('Tahoma',20,'bold')).pack(pady=15)
+        Label(side,text=self.settings.get('store_name'),font=('Tahoma',20,'bold')).pack(pady=15)
         items=[('نقطة البيع','pos'),('المنتجات','products'),('العملاء','customer'),('الموردون','supplier'),('فاتورة شراء','purchase_cart'),('سجل المشتريات','purchases'),('سجل المبيعات','sales'),('الوردية والخزنة','finance'),('التقارير','reports'),('المستخدمون','users'),('الإعدادات والنسخ','settings')]
         admin=self.db.rows('select role from users where id=?',(self.actor,))[0]['role']=='Admin'
         for label,key in items:
             if not admin and key not in ('pos','sales','finance'): continue
-            b=ctk.CTkButton(side,text=label,font=('Tahoma',14),command=guarded(lambda k=key:self.show(k))); b.pack(fill='x',pady=5)
-        ctk.CTkButton(side,text='تغيير كلمة المرور',command=guarded(self.password_dialog),font=('Tahoma',14)).pack(fill='x',pady=12)
-        ctk.CTkButton(side,text='تسجيل خروج',command=self.logout,font=('Tahoma',14)).pack(fill='x',pady=5)
+            b=Button(side,text=label,font=('Tahoma',14),command=guarded(lambda k=key:self.show(k))); b.pack(fill='x',pady=5)
+        Button(side,text='تغيير كلمة المرور',command=guarded(self.password_dialog),font=('Tahoma',14)).pack(fill='x',pady=12)
+        Button(side,text='تسجيل خروج',command=self.logout,font=('Tahoma',14)).pack(fill='x',pady=5)
         self.show('pos')
     def password_dialog(self):
         def save(v): self.auth.change_password(self.actor,v['old'],v['new'])
